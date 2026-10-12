@@ -93,8 +93,13 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   @override
   void initState() {
     super.initState();
+    final safeMin = widget.minPrice >= 0 ? widget.minPrice : 0.0;
+    final safeMax = widget.maxPrice > safeMin ? widget.maxPrice : safeMin + 1000.0;
+    final clampedStart = widget.initialFilters.priceRange.start.clamp(safeMin, safeMax);
+    final clampedEnd = widget.initialFilters.priceRange.end.clamp(clampedStart, safeMax);
+
     _localFilters = FilterStateData(
-      priceRange: widget.initialFilters.priceRange,
+      priceRange: RangeValues(clampedStart, clampedEnd),
       category: widget.initialFilters.category,
       selectedBrands: List.from(widget.initialFilters.selectedBrands),
       minRating: widget.initialFilters.minRating,

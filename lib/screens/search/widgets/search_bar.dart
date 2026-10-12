@@ -39,12 +39,17 @@ class CustomSearchBar extends StatelessWidget {
                 hintText: 'Search watches, brands, SKU...',
                 hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
                 prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
-                suffixIcon: controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18, color: AppColors.textSecondary),
-                        onPressed: onClear,
-                      )
-                    : null,
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) {
+                    return value.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18, color: AppColors.textSecondary),
+                            onPressed: onClear,
+                          )
+                        : const SizedBox.shrink();
+                  },
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               ),

@@ -16,8 +16,15 @@ class PriceRangeSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safeMin = minPrice >= 0 ? minPrice : 0.0;
+    final safeMax = maxPrice > safeMin ? maxPrice : safeMin + 1000.0;
+    final clampedStart = currentRange.start.clamp(safeMin, safeMax);
+    final clampedEnd = currentRange.end.clamp(clampedStart, safeMax);
+    final safeRange = RangeValues(clampedStart, clampedEnd);
+    final divisionCount = ((safeMax - safeMin) / 10).clamp(1, 100).toInt();
+
     return Column(
-      crossAxisAlignment: .start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -27,7 +34,7 @@ class PriceRangeSlider extends StatelessWidget {
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             Text(
-              '\$${currentRange.start.toStringAsFixed(0)} - \$${currentRange.end.toStringAsFixed(0)}',
+              '\$${safeRange.start.toStringAsFixed(0)} - \$${safeRange.end.toStringAsFixed(0)}',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -37,13 +44,13 @@ class PriceRangeSlider extends StatelessWidget {
           ],
         ),
         RangeSlider(
-          values: currentRange,
-          min: minPrice,
-          max: maxPrice,
-          divisions: ((maxPrice - minPrice) / 10).clamp(1, 100).toInt(),
+          values: safeRange,
+          min: safeMin,
+          max: safeMax,
+          divisions: divisionCount,
           labels: RangeLabels(
-            '\$${currentRange.start.toStringAsFixed(0)}',
-            '\$${currentRange.end.toStringAsFixed(0)}',
+            '\$${safeRange.start.toStringAsFixed(0)}',
+            '\$${safeRange.end.toStringAsFixed(0)}',
           ),
           onChanged: onChanged,
         ),

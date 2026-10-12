@@ -39,9 +39,15 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _filters = FilterStateData(
-      priceRange: const RangeValues(0, 10000),
+      priceRange: const RangeValues(0, 500000),
       selectedBrands: [],
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final productProvider = context.read<ProductProvider>();
+      if (productProvider.activeProducts.isEmpty && productProvider.products.isEmpty) {
+        productProvider.loadActiveProducts();
+      }
+    });
   }
 
   @override
@@ -69,7 +75,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _resetFilters() {
     setState(() {
       _filters = FilterStateData(
-        priceRange: const RangeValues(0, 10000),
+        priceRange: const RangeValues(0, 500000),
         selectedBrands: [],
       );
     });
@@ -132,8 +138,10 @@ class _SearchScreenState extends State<SearchScreen> {
         final catMatch = p.categoryName.toLowerCase().contains(q);
         final skuMatch = p.sku.toLowerCase().contains(q);
         final descMatch = (p.description).toLowerCase().contains(q);
+        final tagMatch = p.tags.any((t) => t.toLowerCase().contains(q));
+        final keywordMatch = p.keywords.any((k) => k.toLowerCase().contains(q));
 
-        if (!nameMatch && !brandMatch && !catMatch && !skuMatch && !descMatch) {
+        if (!nameMatch && !brandMatch && !catMatch && !skuMatch && !descMatch && !tagMatch && !keywordMatch) {
           return false;
         }
       }
@@ -142,7 +150,10 @@ class _SearchScreenState extends State<SearchScreen> {
       final effectivePrice = (p.discountPrice != null && p.discountPrice! > 0)
           ? p.discountPrice!
           : p.price;
-      if (effectivePrice < _filters.priceRange.start ||
+      if (effectivePrice < _filters.priceRange.start) {
+        return false;
+      }
+      if (_filters.priceRange.end < 500000 &&
           effectivePrice > _filters.priceRange.end) {
         return false;
       }
@@ -212,8 +223,18 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<ProductProvider>(context);
-    final allProducts = provider.products;
+    final allProducts = provider.products.isNotEmpty
+        ? provider.products
+        : provider.activeProducts;
     final filteredProducts = _filterAndSortProducts(allProducts);
+
+    final maxAvailablePrice = allProducts.isEmpty
+        ? 100000.0
+        : allProducts
+            .map((p) => (p.discountPrice != null && p.discountPrice! > 0)
+                ? p.discountPrice!
+                : p.price)
+            .fold(10000.0, (a, b) => a > b ? a : b);
 
     // Dynamic Lists for Filter Sheets
     final categories = allProducts
@@ -248,6 +269,14 @@ class _SearchScreenState extends State<SearchScreen> {
               },
               activeFilterCount: _countActiveFilters(),
               onOpenFilter: () {
+                final safeMax = maxAvailablePrice > 0 ? maxAvailablePrice : 10000.0;
+                final currentStart = _filters.priceRange.start.clamp(0.0, safeMax);
+                final currentEnd = _filters.priceRange.end >= 500000
+                    ? safeMax
+                    : _filters.priceRange.end.clamp(currentStart, safeMax);
+                final clampedFilters = _filters.copyWith(
+                  priceRange: RangeValues(currentStart, currentEnd),
+                );
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
@@ -256,7 +285,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   builder: (_) => FilterBottomSheet(
-                    initialFilters: _filters,
+                    initialFilters: clampedFilters,
                     availableCategories: categories,
                     availableBrands: brands,
                     availableColors: const [
@@ -267,7 +296,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       'Brown'
                     ],
                     minPrice: 0,
-                    maxPrice: 10000,
+                    maxPrice: safeMax,
                     onApply: (applied) => setState(() => _filters = applied),
                     onReset: _resetFilters,
                   ),
